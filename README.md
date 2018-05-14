@@ -58,7 +58,7 @@ SOFTWARE.
   result, code, headers, status = assert( web.get('http://bbc.com/') )
   print(tostring(result):sub(1, 100))
   ```
-## SSL/TSL with manual parameters
+## SSL/TLS with manual parameters
 
   *web.SSL* table holds default parametes for luasec. By default it does not verify cerificates (*verify = none*). But you may change these parameters directly to what you need:
   
