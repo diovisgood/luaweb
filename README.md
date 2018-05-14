@@ -1,9 +1,9 @@
-## luaweb
+# luaweb
 HTTP and HTTPS simple browser for Lua
 
 Copyright (C) 2018 Pavel B. Chernov (pavel.b.chernov@gmail.com)
 
-# LICENSE (MIT):
+## LICENSE (MIT):
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -33,21 +33,21 @@ SOFTWARE.
 - Allows low-level access via *web.getConnection* and *web.request* to implement any desired task.
 - Supports logging into specified file for debugging.
 
-## Usage
+# Usage
 
-# Simple GET request
+## Simple GET request
 local web = require 'web'
 
 local result, code, headers, status = assert( web.get('https://ya.ru/') )
 print(tostring(result):sub(1, 100))
 
-# Simple POST request
+## Simple POST request
 
 local body = 'Some text'
 result, code, headers, status = assert( web.post('https://ya.ru/', body) )
 print(tostring(result):sub(1, 100))
 
-# Proxy
+## Proxy
 
 web.PROXY = 'https://92.53.73.138:8118'
 result, code, headers, status = assert( web.get('http://bbc.com/') )
