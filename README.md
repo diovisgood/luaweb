@@ -25,9 +25,10 @@ SOFTWARE.
 
 ## Benefits
 - Supports both HTTP and HTTPS connections.
-- Supports persistent connections (i.e. 'Connection: keep-alive').
+- Supports redirects. You can adjust max redirects.
 - Supports Proxy for both HTTP (via *GET*) and HTTPS (via *CONNECT*).
 - Supports *basic* authentication method for servers and proxies.
+- Supports persistent connections (i.e. 'Connection: keep-alive').
 - Transparently manages a pool of recently used connections. Reuses old or recreates new connections on the fly.
 - Offers quick functions: *web.get*, *web.post*, *web.head* for simple and robust work.
 - Allows low-level access via *web.getConnection* and *web.request* to implement any desired task.
