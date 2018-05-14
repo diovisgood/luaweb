@@ -76,7 +76,7 @@ See: https://github.com/brunoos/luasec/wiki/LuaSec-0.7 for more details about SS
 
 # Implementation Notes
 
-This module has nod been heavily tested. At the end of module you may find unit tests and many of them aren't written yet!
+This module has not been heavily tested. At the end of module you may find unit tests and many of them aren't written yet!
 Any help or comments are appreciated!
 
 Here is what could be added to make it better:
