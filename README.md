@@ -60,7 +60,7 @@ SOFTWARE.
   ```
 ## SSL/TSL with manual parameters
 
-  *web.SSL* table holds default parametes for luasec. By default it does not verify cerificates (*verify = none*). But you may change this parameters directly to what you need:
+  *web.SSL* table holds default parametes for luasec. By default it does not verify cerificates (*verify = none*). But you may change these parameters directly to what you need:
   
   ```
   web.SSL.key = "/root/client.key"
