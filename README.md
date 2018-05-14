@@ -58,3 +58,27 @@ SOFTWARE.
   result, code, headers, status = assert( web.get('http://bbc.com/') )
   print(tostring(result):sub(1, 100))
   ```
+## SSL/TSL with manual parameters
+
+  *web.SSL* table holds default parametes for luasec. By default it does not verify cerificates (*verify = none*). But you may change this parameters directly to what you need:
+  
+  ```
+  web.SSL.key = "/root/client.key"
+  web.SSL.certificate = "/root/client.crt"
+  web.SSL.cafile = "/root/ca.crt"
+  web.SSL.verify = 'peer'
+  
+  result, code, headers, status = assert( web.get('https://server-with-certificate.com/') )
+  print(tostring(result):sub(1, 100))
+  ```
+
+See: https://github.com/brunoos/luasec/wiki/LuaSec-0.7 for more details about SSL/TLS parameters
+
+# Implementation Notes
+
+This module has nod been heavily tested. At the end of module you may find unit tests and many of them aren't written yet!
+Any help or comments are appreciated!
+
+Here is what could be added to make it better:
+- Simple cookies support.
+- Digest authentication method.
