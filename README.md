@@ -37,18 +37,18 @@ SOFTWARE.
 
 ## Simple GET request
 
-  local web = require 'web'
+  ```local web = require 'web'
   local result, code, headers, status = assert( web.get('https://ya.ru/') )
-  print(tostring(result):sub(1, 100))
+  print(tostring(result):sub(1, 100))```
 
 ## Simple POST request
 
-  local body = 'Some text'
+  ```local body = 'Some text'
   result, code, headers, status = assert( web.post('https://ya.ru/', body) )
-  print(tostring(result):sub(1, 100))
+  print(tostring(result):sub(1, 100))```
 
 ## Proxy
 
-  web.PROXY = 'https://92.53.73.138:8118'
+  ```web.PROXY = 'https://92.53.73.138:8118'
   result, code, headers, status = assert( web.get('http://bbc.com/') )
-  print(tostring(result):sub(1, 100))
+  print(tostring(result):sub(1, 100))```
