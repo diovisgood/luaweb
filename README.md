@@ -143,7 +143,7 @@ See: https://github.com/brunoos/luasec/wiki/LuaSec-0.7 for more details about SS
 You see the following output:
   ```
 web.request GET https://ya.ru/
-web.getConnection: https://ya.ru:443
+web.getConnection https://ya.ru:443
 GET /
 HTTP/1.1 200 Ok
 <!DOCTYPE html><html class="i-ua_js_no i-ua_css_st...
@@ -156,5 +156,6 @@ This module has not been heavily tested. At the end of module you may find unit 
 Any help or comments are appreciated!
 
 Here is what could be added to make it better:
+- LuaRocks support.
 - Simple cookies support.
 - Digest authentication method.
