@@ -40,7 +40,7 @@ local web = {
   _URL         = 'https://github.com/diovisgood/luaweb/',
   _DESCRIPTION = 'HTTP and HTTPS simple browser for Lua',
   _LICENSE = [[
-    Copyright 2018 Pavel B. Chernov (pavel.b.chernov@gmail.com)
+    Copyright (C) 2018 Pavel B. Chernov (pavel.b.chernov@gmail.com)
     MIT LICENSE
   ]],
 }
