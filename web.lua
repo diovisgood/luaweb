@@ -438,6 +438,17 @@ local function performRedirect(request, location)
   request.authority = new_request.authority
   request.path = new_request.path or request.path
   request.n_redirects = (request.n_redirects or 0) + 1
+  -- Update URI
+  local uri = request
+  if (not (request.proxy or web.PROXY)) or (request.scheme == 'https') then
+    uri = {
+      path = request.path,
+      params = request.params,
+      query = request.query,
+      fragment = request.fragment
+    }
+  end
+  request.uri = socket_url.build(uri)
   -- Perform new request
   local result, code, headers, status = web.request(request)
   -- Ensure there is location in response headers
@@ -643,7 +654,7 @@ test('https://ya.ru/')
 
 -- Test HTTPS through proxy via CONNECT method
 web.reset()
-web.PROXY = 'https://45.249.9.22:53281'
+web.PROXY = 'https://80.8.165.93:3128'
 test('https://ya.ru/')
 
 test('https://meduza.io/')
