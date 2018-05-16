@@ -121,7 +121,12 @@ Whereas non-standard headers are just added "as is".
   print(tostring(result):sub(1, 100))
   ```
 
-See: https://github.com/brunoos/luasec/wiki/LuaSec-0.7 for more details about SSL/TLS parameters
+See: https://github.com/brunoos/luasec/wiki/LuaSec-0.7 for more details about SSL/TLS parameters.
+In most cases you may end up with following. Download *cacert.pem* from Mozilla http://curl.haxx.se/ca/cacert.pem which contains root certificates of most well known certificate authorities and use it as follows:
+  ```
+  web.SSL.cafile = "/path/to/cacert.pem"
+  web.SSL.verify = 'peer'
+  ```
 
 ## Adjusting Parameters
 
