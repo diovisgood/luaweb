@@ -30,7 +30,7 @@ SOFTWARE.
 - Supports *basic* authentication method for servers and proxies.
 - Supports persistent connections (i.e. 'Connection: keep-alive').
 - Transparently manages a pool of recently used connections. Reuses old or recreates new connections on the fly.
-- Offers quick functions: *web.get*, *web.post*, *web.head* for simple and robust work.
+- Offers quick functions: *web.head*, *web.get*, *web.post*, *web.put* and *web.delete* for simple and robust work.
 - Allows low-level access via *web.getConnection* and *web.request* to implement any desired task.
 - Supports logging into specified file for debugging.
 
@@ -51,14 +51,39 @@ SOFTWARE.
   result, code, headers, status = assert( web.post('https://ya.ru/', body) )
   print(tostring(result):sub(1, 100))
   ```
-
-## Proxy
+  
+## Simple PUT request
 
   ```
-  web.PROXY = 'https://92.53.73.138:8118'
+  local body = 'Some text'
+  result, code, headers, status = assert( web.put('https://ya.ru/file1.txt', body) )
+  print(tostring(result):sub(1, 100))
+  ```
+  
+## Simple DELETE request
+
+  ```
+  local body = 'Some text'
+  result, code, headers, status = assert( web.delete('https://ya.ru/file1.txt') )
+  print(tostring(result):sub(1, 100))
+  ```
+
+## HTTP Through Proxy
+
+  ```
+  web.PROXY = 'https://92.53.73.138:8118' -- This line should be changed. Please specify any working proxy!
   result, code, headers, status = assert( web.get('http://bbc.com/') )
   print(tostring(result):sub(1, 100))
   ```
+
+## HTTPS Through Proxy via CONNECT
+
+  ```
+  web.PROXY = 'https://92.53.73.138:8118' -- This line should be changed. Please specify any working proxy!
+  result, code, headers, status = assert( web.get('https://ya.ru/') )
+  print(tostring(result):sub(1, 100))
+  ```
+
 ## SSL/TLS with manual parameters
 
   *web.SSL* table holds default parametes for luasec. By default it does not verify cerificates (*verify = none*). But you may change these parameters directly to what you need:
@@ -74,6 +99,33 @@ SOFTWARE.
   ```
 
 See: https://github.com/brunoos/luasec/wiki/LuaSec-0.7 for more details about SSL/TLS parameters
+
+## Adjusting Parameters
+
+  ```
+  web.TIMEOUT = 60                -- Adjust default connection timeout.
+  web.MAX_REDIRECTS = 5           -- Maximum number of redirects to follow.
+  web.USERAGENT = socket._VERSION -- Setup any string for User-Agent header.
+  web.SSL = { ... }               -- Setup any LuaSec fields and certificates.
+  ```
+
+## Logging for Debug
+
+  ```
+  -- Enable logging to stdout
+  web.logfile = io.stdout
+  result, code, headers, status = assert( web.get('https://ya.ru/') )
+  print(tostring(result):sub(1, 100))
+  ```
+You see the following output:
+  ```
+web.request GET https://ya.ru/
+web.getConnection: https://ya.ru:443
+GET /
+HTTP/1.1 200 Ok
+<!DOCTYPE html><html class="i-ua_js_no i-ua_css_st...
+  ```
+
 
 # Implementation Notes
 
