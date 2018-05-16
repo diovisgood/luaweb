@@ -31,7 +31,7 @@ SOFTWARE.
 - Supports persistent connections (i.e. 'Connection: keep-alive').
 - Transparently manages a pool of recently used connections. Reuses old or recreates new connections on the fly.
 - Offers quick functions: *web.head*, *web.get*, *web.post*, *web.put* and *web.delete* for simple and robust work.
-- Allows low-level access via *web.getConnection* and *web.request* to implement any desired task.
+- Allows low-level access via *web.getConnection*, *web.call* and *web.request* to implement any desired task.
 - Supports logging into specified file for debugging.
 
 # Usage
@@ -82,6 +82,27 @@ SOFTWARE.
   web.PROXY = 'https://92.53.73.138:8118' -- This line should be changed. Please specify any working proxy!
   result, code, headers, status = assert( web.get('https://ya.ru/') )
   print(tostring(result):sub(1, 100))
+  ```
+
+## Low Level Non-standard Request Headers via *web.call*
+
+In the following example we perform a special POST request with non-standard HTTP headers *Key* and *Sign*.
+Note that you may specify any headers you want. As they will override default headers.
+  ```
+  -- Construct message
+  poloniex.nonce = (poloniex.nonce or 0) + 1
+  local msg = 'command=returnCompleteBalances&nonce='..tostring(poloniex.nonce)
+  
+  -- Construct headers
+  local request_headers = {
+    Key = poloniex.public_key,
+    Sign = sha1.hmac(poloniex.secret_key, msg),
+  }
+  -- Perform Web request
+  -- Check returned body and code
+  result, code, headers, status =
+    web.call('POST', url, msg, request_headers)
+  if (not result) or (code ~= 200) then return nil, errorMsg(url, result, code, headers, status) end
   ```
 
 ## SSL/TLS with manual parameters
