@@ -35,7 +35,15 @@ local ltn12 = require 'ltn12'
 local mime = require 'mime'
 local ssl = require 'ssl'
 
-local web = {}
+local web = {
+  _VERSION     = 'luaweb 0.1.0',
+  _URL         = 'https://github.com/diovisgood/luaweb/',
+  _DESCRIPTION = 'HTTP and HTTPS simple browser for Lua',
+  _LICENSE = [[
+    Copyright 2018 Pavel B. Chernov (pavel.b.chernov@gmail.com)
+    MIT LICENSE
+  ]],
+}
 
 -----------------------------------------------------------------------------
 -- Default constants
@@ -57,6 +65,15 @@ web.SSL = {
 
 -- Supported schemes
 local SCHEMES = { http = true, https = true, }
+
+-- Supported methods
+local METHODS = {
+  HEAD = true,
+  GET = true,
+  PUT = true,
+  POST = true,
+  DELETE = true,
+}
 
 -- Default ports
 local HTTP_PORT = 80
@@ -166,7 +183,7 @@ web.getConnection = socket.protect(function(request)
   -- Establish connection to a remote host
   if request.proxy or web.PROXY then
     -- Connect to a host through proxy
-    local proxy = socket_url.parse(request.proxy or web.PROXY)
+    local proxy = conn.try( socket_url.parse(request.proxy or web.PROXY) )
     proxy.port = (proxy.port or 3128)
     conn.try(sock:connect(proxy.host, proxy.port))
     if web.logfile then webLog('Connected to proxy ', proxy.host, ':', proxy.port) end
@@ -353,7 +370,7 @@ local function adjustRequest(request)
   end
   -- Add proxy authentication header if needed and if not HTTPS
   if (request.proxy or web.PROXY) and (request.scheme ~= 'https') then
-    local proxy = socket_url.parse(request.proxy or web.PROXY)
+    local proxy = socket.try( socket_url.parse(request.proxy or web.PROXY) )
     if (type(proxy.user) == 'string') and (type(proxy.password) == 'string') then
       headers['proxy-authorization'] =
         'Basic '..(mime.b64(socket_url.unescape(proxy.user)..':'..socket_url.unescape(proxy.password)))
@@ -363,11 +380,8 @@ local function adjustRequest(request)
   if (request.headers) then
     for k, v in pairs(request.headers) do
       local k_lower = k:lower()
-      if headers[k_lower] then
-        headers[k_lower] = v
-      else
-        headers[k] = v
-      end
+      if headers[k_lower] then k = k_lower end
+      headers[k] = v
     end -- for request.headers
   end -- if request.headers
   request.headers = headers
@@ -428,8 +442,8 @@ end -- function shouldKeepAlive
 
 local function performRedirect(request, location)
   -- Force redirect URL to be absolute
-  local new_url = socket_url.absolute(request.url, location)
-  local new_request = socket_url.parse(new_url)
+  local new_url = socket.try( socket_url.absolute(request.url, location) )
+  local new_request = socket.try( socket_url.parse(new_url) )
   -- Update request fields
   request.url = new_url
   request.scheme = new_request.scheme
@@ -437,18 +451,8 @@ local function performRedirect(request, location)
   request.port = new_request.port
   request.authority = new_request.authority
   request.path = new_request.path or request.path
+  request.uri = nil -- It will be calculated later in web.request()
   request.n_redirects = (request.n_redirects or 0) + 1
-  -- Update URI
-  local uri = request
-  if (not (request.proxy or web.PROXY)) or (request.scheme == 'https') then
-    uri = {
-      path = request.path,
-      params = request.params,
-      query = request.query,
-      fragment = request.fragment
-    }
-  end
-  request.uri = socket_url.build(uri)
   -- Perform new request
   local result, code, headers, status = web.request(request)
   -- Ensure there is location in response headers
@@ -553,17 +557,14 @@ function web.request(request)
   return result, code, headers, status
 end -- function web.request
 
-function web.call(method, url, body, f_skip_response_body)
+function web.call(method, url, body, request_headers, f_skip_response_body)
   -- Check parameters
-  assert(type(method) == 'string', 'web.call: Invalid method type!')
-  method = method:upper()
-  assert(method == 'HEAD' or method == 'GET' or method == 'POST'
-    or method == 'PUT' or method == 'DELETE',
-    'web.call: Invalid method value!')
+  assert(type(method) == 'string' and METHODS[method], 'web.call: Invalid method!')
   assert(type(url) == 'string', 'web.call: Invalid url parameter!')
   -- Prepare request
   local target = {}
-  local request = socket_url.parse(url)
+  local request, err = socket_url.parse(url)
+  if (not request) then return nil, err end
   request.method = method
   request.url = url
   if (type(body) == 'string') then
@@ -575,6 +576,13 @@ function web.call(method, url, body, f_skip_response_body)
   end
   request.sink = ltn12.sink.table(target)
   request.target = target
+  -- Add user-defined headers
+  if request_headers then
+    for k, v in pairs(request_headers) do
+      if request.headers[k:lower()] then k = k:lower() end
+      request.headers[k] = v
+    end
+  end
   -- Perform request
   local result, code, headers, status = web.request(request)
   if (not result) or f_skip_response_body then
@@ -591,7 +599,7 @@ function web.call(method, url, body, f_skip_response_body)
 end -- function web.call
 
 function web.head(url)
-  return web.call('HEAD', url, nil, true)
+  return web.call('HEAD', url, nil, nil, true)
 end -- function web.get
 
 function web.get(url)
