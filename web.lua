@@ -149,7 +149,7 @@ web.getConnection = socket.protect(function(request)
   -- Try to reuse previous connections
   local host_port = tostring(request.host)..':'..tostring(request.port)
   local address = tostring(request.scheme)..'://'..host_port
-  if web.logfile then webLog('web.getConnection: ', address) end
+  if web.logfile then webLog('web.getConnection ', address) end
   if Pool[address] then
     if web.logfile then webLog('Reusing connection ', address) end
     return Pool[address]
@@ -202,6 +202,7 @@ web.getConnection = socket.protect(function(request)
   if (request.scheme == 'https') then
     conn.sock = conn.try(ssl.wrap(sock, web.SSL))
     conn.sock:sni(request.host)
+    conn.sock:settimeout(web.TIMEOUT, 'b')
     conn.try(conn.sock:dohandshake())
     if web.logfile then webLog('Established SSL connection to ', host_port) end
   end
