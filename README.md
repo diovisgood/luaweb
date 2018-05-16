@@ -87,8 +87,8 @@ SOFTWARE.
 ## Low Level Non-standard Request Headers via *web.call*
 
 In the following example we perform a special POST request with non-standard HTTP headers *Key* and *Sign*.
-Note that you may specify any headers you want. If you specify some standard headers (like *User-Agent:*)
-- they will override default headers.
+Note that you may specify any headers you want. If you specify some standard headers (like *User-Agent:*) - they
+will override default headers.
 Whereas non-standard headers are just added "as is".
   ```
   -- Construct message
