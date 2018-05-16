@@ -179,8 +179,9 @@ web.getConnection = socket.protect(function(request)
         ..'User-Agent: '..tostring(web.USERAGENT)..'\r\n'
       -- Apply proxy authorization if needed
       if proxy.user and proxy.password then
-        text = text .. 'Proxy-Authorization: basic '
-          ..(mime.b64(proxy.user..':'..socket_url.unescape(proxy.password)))..'\r\n'
+        text = text .. 'Proxy-Authorization: Basic '
+          ..(mime.b64(socket_url.unescape(proxy.user)..':'..socket_url.unescape(proxy.password)))
+          ..'\r\n'
       end
       text = text .. '\r\n'
       -- Send command
@@ -237,8 +238,8 @@ end -- function Connection:sendRequestLine
 function Connection:sendHeaders(headers)
   local canonic = socket_headers.canonic
   local text = '\r\n'
-  for f, v in pairs(headers) do
-    text = (canonic[f] or f) .. ': ' .. v .. '\r\n' .. text
+  for k, v in pairs(headers) do
+    text = (canonic[k] or k) .. ': ' .. v .. '\r\n' .. text
   end
   self.try(self.sock:send(text))
   return 1
@@ -347,20 +348,25 @@ local function adjustRequest(request)
   -- Add authentication header if needed
   if (type(request.user) == 'string') and (type(request.password) == 'string') then
     headers['authorization'] =
-      'Basic '..(mime.b64(request.user..':'.. socket_url.unescape(request.password)))
+      'Basic '..(mime.b64(socket_url.unescape(request.user)..':'.. socket_url.unescape(request.password)))
   end
   -- Add proxy authentication header if needed and if not HTTPS
   if (request.proxy or web.PROXY) and (request.scheme ~= 'https') then
     local proxy = socket_url.parse(request.proxy or web.PROXY)
     if (type(proxy.user) == 'string') and (type(proxy.password) == 'string') then
       headers['proxy-authorization'] =
-        'basic '..(mime.b64(proxy.user..':'..socket_url.unescape(proxy.password)))
+        'Basic '..(mime.b64(socket_url.unescape(proxy.user)..':'..socket_url.unescape(proxy.password)))
     end
   end
   -- Override with user headers
   if (request.headers) then
     for k, v in pairs(request.headers) do
-      headers[k:lower()] = v
+      local k_lower = k:lower()
+      if headers[k_lower] then
+        headers[k_lower] = v
+      else
+        headers[k] = v
+      end
     end -- for request.headers
   end -- if request.headers
   request.headers = headers
@@ -535,63 +541,68 @@ function web.request(request)
   return result, code, headers, status
 end -- function web.request
 
-function web.head(url)
-  assert(type(url) == 'string', 'web.head: Invalid url parameter!')
+function web.call(method, url, body, f_skip_response_body)
+  -- Check parameters
+  assert(type(method) == 'string', 'web.call: Invalid method type!')
+  method = method:upper()
+  assert(method == 'HEAD' or method == 'GET' or method == 'POST'
+    or method == 'PUT' or method == 'DELETE',
+    'web.call: Invalid method value!')
+  assert(type(url) == 'string', 'web.call: Invalid url parameter!')
+  -- Prepare request
+  local target = {}
   local request = socket_url.parse(url)
-  request.method = 'HEAD'
+  request.method = method
   request.url = url
-  return web.request(request)
+  if (type(body) == 'string') then
+    request.source = ltn12.source.string(body)
+    request.headers = {
+      ['content-length'] = string.len(body),
+      ['content-type'] = 'application/x-www-form-urlencoded'
+    }
+  end
+  request.sink = ltn12.sink.table(target)
+  request.target = target
+  -- Perform request
+  local result, code, headers, status = web.request(request)
+  if (not result) or f_skip_response_body then
+    return result, code, headers, status
+  end
+  -- Analyse response data
+  if (type(target) == 'table') then
+    result = table.concat(target)
+  else
+    result = target
+  end
+  -- Return result
+  return result, code, headers, status
+end -- function web.call
+
+function web.head(url)
+  return web.call('HEAD', url, nil, true)
 end -- function web.get
 
 function web.get(url)
-  assert(type(url) == 'string', 'web.get: Invalid url parameter!')
-  -- Prepare request
-  local target = {}
-  local request = socket_url.parse(url)
-  request.method = 'GET'
-  request.url = url
-  request.sink = ltn12.sink.table(target)
-  request.target = target
-  -- Perform request
-  local result, code, headers, status = web.request(request)
-  if (not result) then return result, code, headers, status end
-  -- Analyse response data
-  if (type(target) == 'table') then
-    result = table.concat(target)
-  else
-    result = target
-  end
-  -- Return result
-  return result, code, headers, status
+  return web.call('GET', url)
 end -- function web.get
 
 function web.post(url, body)
-  assert(type(url) == 'string', 'web.post: Invalid url parameter!')
-  assert(type(body) == 'string', 'web.post: Invalid body parameter!')
-  -- Prepare request
-  local target = {}
-  local request = socket_url.parse(url)
-  request.method = 'POST'
-  request.url = url
-  request.source = ltn12.source.string(body)
-  request.headers = {
-    ['content-length'] = string.len(body),
-    ['content-type'] = 'application/x-www-form-urlencoded'
-  }
-  request.sink = ltn12.sink.table(target)
-  request.target = target
-  -- Perform request
-  local result, code, headers, status = web.request(request)
-  if (not result) then return result, code, headers, status end
-  -- Analyse response data
-  if (type(target) == 'table') then
-    result = table.concat(target)
-  else
-    result = target
-  end
-  -- Return result
-  return result, code, headers, status
+  return web.call('POST', url, body)
 end -- function web.post
+
+function web.put(url, body)
+  return web.call('PUT', url, body)
+end -- function web.put
+
+function web.delete(url)
+  return web.call('DELETE', url)
+end -- function web.delete
+
+-- Additional proxy function to encode special symbols in URL with % codes
+web.escape = socket_url.escape
+
+-- Additional proxy function to decode special % codes in URL back to symbols
+web.unescape = socket_url.unescape
 
 -- Check if running from console
 local info = debug.getinfo(2)
@@ -631,7 +642,7 @@ test('https://ya.ru/')
 
 -- Test HTTPS through proxy via CONNECT method
 web.reset()
-web.PROXY = 'https://92.53.73.138:8118'
+web.PROXY = 'https://45.249.9.22:53281'
 test('https://ya.ru/')
 
 test('https://meduza.io/')
@@ -654,3 +665,7 @@ test('http://export.finam.ru/SPFB.SBRF-9.17_170501_170930.txt?market=14&em=45954
 -- TODO: Test HTTPS with authorization
 
 -- TODO: Test HTTP with authorization through proxy with authorization via GET method
+
+-- TODO: Test HTTPS with server certificate check
+
+-- TODO: Test HTTPS with client certificate and server certificate check
