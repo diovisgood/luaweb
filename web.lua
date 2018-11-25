@@ -59,8 +59,9 @@ web.USERAGENT = socket._VERSION
 web.SSL = {
   protocol = 'any',
   options  = { 'all', 'no_sslv2', 'no_sslv3' },
-  verify   = 'none',
+  verify   = 'none', -- Change to 'peer' in order to verify certificates
   mode     = 'client',
+  --cafile = '/path/to/downloaded/cacert.pem' -- Add this parameter to verify certificates
 }
 
 -- Supported schemes
@@ -557,7 +558,7 @@ function web.request(request)
   return result, code, headers, status
 end -- function web.request
 
-function web.call(method, url, body, request_headers, f_skip_response_body)
+function web.call(method, url, source, request_headers, f_skip_response_body)
   -- Check parameters
   assert(type(method) == 'string' and METHODS[method], 'web.call: Invalid method!')
   assert(type(url) == 'string', 'web.call: Invalid url parameter!')
@@ -567,13 +568,29 @@ function web.call(method, url, body, request_headers, f_skip_response_body)
   if (not request) then return nil, err end
   request.method = method
   request.url = url
-  if (type(body) == 'string') then
-    request.source = ltn12.source.string(body)
+  -- Prepare request source for outgoing data
+  local type_source = type(source)
+  if (type_source == 'string') then
+    request.source = ltn12.source.string(source)
     request.headers = {
-      ['content-length'] = string.len(body),
-      ['content-type'] = 'application/x-www-form-urlencoded'
+      ['content-type'] = 'application/x-www-form-urlencoded',
+      ['content-length'] = string.len(source),
     }
+  elseif (type_source == 'table') then
+    -- Encode form into multipart/form-data text
+    local boundary = web.newBoundary()
+    local content, err = web.encodeForm(source, boundary)
+    if (not content) then return nil, err end
+    request.source = ltn12.source.string(content)
+    request.headers = {
+      ['content-type'] = string.format('multipart/form-data; boundary=%s', boundary),
+      ['content-length'] = string.len(content),
+    }
+  elseif (type_source == 'function') then
+    request.source = source
+    request.headers = {}
   end
+  -- Prepare request sink to capture server response
   request.sink = ltn12.sink.table(target)
   request.target = target
   -- Add user-defined headers
@@ -590,6 +607,8 @@ function web.call(method, url, body, request_headers, f_skip_response_body)
   end
   -- Analyse response data
   if (type(target) == 'table') then
+    --print(tostring(url))
+    --print('#target='..tostring(#target))
     result = table.concat(target)
   else
     result = target
@@ -597,6 +616,13 @@ function web.call(method, url, body, request_headers, f_skip_response_body)
   -- Return result
   return result, code, headers, status
 end -- function web.call
+
+function web.newBoundary(len)
+  len = len or 20
+  local b = {}
+  for i = 1, len do b[i] = string.char(math.random(65, 90)) end
+  return table.concat(b)
+end -- function web.newBoundary
 
 function web.head(url)
   return web.call('HEAD', url, nil, nil, true)
@@ -618,11 +644,69 @@ function web.delete(url)
   return web.call('DELETE', url)
 end -- function web.delete
 
+-- Additional proxy function to sleep N seconds
+web.sleep = socket.sleep
+
 -- Additional proxy function to encode special symbols in URL with % codes
 web.escape = socket_url.escape
 
 -- Additional proxy function to decode special % codes in URL back to symbols
 web.unescape = socket_url.unescape
+
+-- Helper function to encode forms for Content-type: multipart/form-data .
+-- Such content-type is often used to upload files and submit forms.
+function web.encodeForm(form, boundary)
+  if (type(boundary) ~= 'string') then return nil, 'Invalid boundary' end
+  if (type(form) ~= 'table') then return nil, 'Invalid form' end
+  -- This will collect all fields as chunks into one string
+  local result = ''
+  -- Process each field
+  for name, v in pairs(form) do
+    local tname, tv = type(name), type(v)
+    -- Check name type
+    if (tname ~= 'number') and (tname ~= 'string') then
+      return nil, 'Invalid field name type: '..tname
+    end
+    if (tv == 'string') or (tv == 'number') or (tv == 'boolean') then
+      -- Add field as text/plain chunk
+      v = string.format('\r\n--%s\r\nContent-Disposition: form-data; name="%s"\r\n\r\n',
+        boundary, tostring(name))..tostring(v)
+      result = result .. v
+    elseif (tv == 'table') then
+      local filepath = (v.filepath or v.filename or v.file)
+      local filename
+      local content = (v.content or v.data or v.value)
+      local content_type = v.content_type
+      if (type(content) ~= 'string') then content = nil end
+      if (type(filepath) == 'string') then
+        _, filename = string.match(filepath, '(.-)([^\\/]-%.?[^%.\\/]*)$')
+        if (not content) then
+          local file, err = io.open(filepath, 'rb')
+          if (not file) then return nil, err end
+          content = file:read('*a')
+          file:close()
+        end
+      end
+      if (type(content_type) ~= 'string') then
+        content_type = 'application/octet-stream'
+      end
+      if (not content) then return nil, 'Could not find file contents' end
+      if filename then
+        v = string.format('\r\n--%s\r\nContent-Disposition: form-data; name="%s"; filename="%s"\r\nContent-Type: %s\r\n\r\n',
+          boundary, tostring(name), tostring(filename), tostring(content_type))
+      else
+        v = string.format('\r\n--%s\r\nContent-Disposition: form-data; name="%s"\r\nContent-Type: %s\r\n\r\n',
+          boundary, tostring(name), tostring(content_type))
+      end
+      result = result..v..content
+    else
+      return nil, 'Invalid field value of type: '..tv
+    end
+  end
+  -- Add final boundary
+  result = result..'\r\n--'..boundary..'--\r\n'
+  return result
+end -- web.encodeForm
 
 -- Check if running from console
 local info = debug.getinfo(2)
@@ -636,6 +720,8 @@ end
 
 -- Enable logging to stdout
 web.logfile = io.stdout
+
+print('newBoundary:', web.newBoundary())
 
 local function test(url)
   local result, code, headers, status = web.get(url)
